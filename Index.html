@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drug Detection Central Dashboard</title>
+    <!-- Use Tailwind CSS for rapid styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .pulse {
+            animation: pulse-animation 2s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% {
+                box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.5);
+            }
+
+            100% {
+                box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white font-sans antialiased">
+
+    <div class="container mx-auto px-4 py-8">
+        <header class="flex justify-between items-center mb-10 pb-4 border-b border-gray-700">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl">🛡️</span>
+                <h1 class="text-3xl font-bold tracking-tight">Security Alert Dashboard</h1>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <button id="cameraToggleBtn" onclick="toggleCamera()" class="px-4 py-2 rounded font-bold text-sm {% if camera_active %}bg-red-600 hover:bg-red-700 text-white{% else %}bg-green-600 hover:bg-green-700 text-white{% endif %} transition-colors shadow-lg">
+                    {% if camera_active %}Turn Camera Off{% else %}Turn Camera On{% endif %}
+                </button>
+                <div class="flex items-center gap-2">
+                    <div class="h-3 w-3 rounded-full bg-green-500 pulse"></div>
+                    <span class="text-sm text-gray-400 font-medium">System Active</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="mb-6 flex justify-between items-end">
+            <h2 class="text-xl font-semibold text-gray-300">Live Camera Feed</h2>
+        </div>
+
+        <div class="mb-10 bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700 p-2 flex justify-center w-full max-w-4xl mx-auto">
+            <!-- This img tag magically plays the live MJPEG stream from Flask -->
+            <img src="/video_feed" alt="Live Camera Preview" class="w-full h-auto rounded-lg object-contain border border-gray-900 bg-black min-h-[300px]" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-64 flex flex-col items-center justify-center bg-black text-gray-500 rounded-lg\'><span class=\'text-3xl mb-2\'>📷</span><p>Waiting for camera pipeline (run detect.py)</p></div>';">
+        </div>
+
+        <div class="mb-6 flex justify-between items-end">
+            <h2 class="text-xl font-semibold text-gray-300">Recent Detections</h2>
+            <!-- Auto refresh the page every 5 seconds to get new alerts -->
+            <p class="text-xs text-gray-500">Auto-refreshing every 5s...</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% if alerts %}
+            {% for alert in alerts %}
+            <div
+                class="bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-red-900/50 hover:border-red-600 transition duration-300 flex flex-col">
+                <div class="bg-red-600/20 px-4 py-2 flex justify-between items-center border-b border-red-900/50">
+                    <span class="font-bold text-red-500 uppercase tracking-wider text-sm">ALERT: {{ alert.class
+                        }}</span>
+                    <span class="text-xs text-red-400 opacity-80">{{ alert.timestamp }}</span>
+                </div>
+
+                <div class="p-4 flex-grow flex flex-col items-center justify-center bg-black">
+                    <!-- Display base64 image if available, else placeholder -->
+                    {% if alert.image %}
+                    <img src="data:image/jpeg;base64,{{ alert.image }}" alt="Detected {{ alert.class }}"
+                        class="max-h-48 object-contain rounded border border-gray-700">
+                    {% else %}
+                    <div class="h-32 w-full flex items-center justify-center text-gray-600 italic">No image data</div>
+                    {% endif %}
+                </div>
+
+                <div class="bg-gray-800 px-4 py-3 flex justify-between items-center text-sm border-t border-gray-700">
+                    <span class="text-gray-400">ID: #{{ alert.id }}</span>
+                    <span class="text-gray-300">Confidence: <span class="font-bold text-white">{{ alert.confidence
+                            }}%</span></span>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div
+                class="col-span-full py-20 flex flex-col items-center justify-center text-center bg-gray-800/50 rounded-xl border border-dashed border-gray-700">
+                <span class="text-5xl mb-4 opacity-50">✅</span>
+                <h3 class="text-xl font-medium text-gray-400">No Drugs Detected</h3>
+                <p class="text-gray-500 mt-2">The system is actively monitoring the camera feeds. Any detections will
+                    appear here automatically.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function toggleCamera() {
+            fetch('/api/toggle_camera', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    const btn = document.getElementById('cameraToggleBtn');
+                    if (data.active) {
+                        btn.textContent = 'Turn Camera Off';
+                        btn.className = 'px-4 py-2 rounded font-bold text-sm bg-red-600 hover:bg-red-700 text-white transition-colors shadow-lg';
+                        // Refresh to restart feed
+                        setTimeout(() => window.location.reload(), 500);
+                    } else {
+                        btn.textContent = 'Turn Camera On';
+                        btn.className = 'px-4 py-2 rounded font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-colors shadow-lg';
+                    }
+                })
+                .catch(err => console.error('Error toggling camera:', err));
+        }
+        setTimeout(function () {
+            window.location.reload(1);
+        }, 5000); // 5000ms = 5 seconds
+    </script>
+</body>
+</html>
